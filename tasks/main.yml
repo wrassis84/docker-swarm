@@ -1,2 +1,14 @@
----
 # tasks file for server
+---
+- name: Configure Swarm Managers
+  hosts: docker_swarm_manager
+  roles:
+    - docker
+    - manager
+
+- name: Configure Swarm Workers
+  hosts: docker_swarm_worker
+  roles:
+  - docker
+  - worker
+...
