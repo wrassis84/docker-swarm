@@ -1,0 +1,5 @@
+# vars file for server
+---
+docker_swarm_manager_ip: "192.168.0.230"
+created_username: "sysadmin"
+...

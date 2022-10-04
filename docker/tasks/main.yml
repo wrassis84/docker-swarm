@@ -1,0 +1,101 @@
+---
+  - name: Update package list with apt
+    apt:
+      update_cache: yes
+
+  - name: Modify hostname
+    shell: hostname {{ inventory_hostname }}
+
+  - name: Kill apt proccess
+    shell: sudo killall -9 apt-get || true
+
+  - name: Show IP Address
+  # ansible all -m setup -a 'filter=' -u USER --become (Shows all gather facts)
+    debug: var={{ ansible_host }}
+
+  - name: Get Ubuntu codename
+    shell: lsb_release -cs
+    register: codename
+
+  - name: Print out the codename
+    debug:
+      msg: "This is my {{ codename.stdout }} release!"
+    tags:
+    - never
+    - print_codename
+
+  - name: Install aptitude
+    apt:
+      name: aptitude
+      state: latest
+      update_cache: true
+
+  - name: Install required system packages
+    apt:
+      pkg:
+        - git
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg2
+        - software-properties-common
+        - python3-pip
+        - virtualenv
+        - python3-setuptools
+        - lsb-release
+        - lsb-core
+      state: latest
+      update_cache: yes
+    tags: install_pkgs
+
+  - name: Add Docker GPG apt key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+
+  - name: Verify key fingerprint
+    apt_key:
+      id: 0EBFCD88
+      state: present
+    tags:
+    - fingerprint
+
+  - name: Add Docker repository
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu "{{ codename.stdout }}" stable
+      state: present
+      update_cache: yes
+
+  - name: Update apt and install docker-ce | docker-ce-cli | containerd
+    apt:
+      name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      state: latest
+      update_cache: true
+
+  - name: Install Docker module for python
+    pip:
+      name: docker
+
+  - name: Ensure group docker exists
+    ansible.builtin.group:
+      name: docker
+      state: present
+
+  - name: Add users on docker group
+    ansible.builtin.user:
+      name: "{{ created_username }}"
+      groups: docker
+      append: yes
+    tags: add_docker_group
+
+  # TO FIX: Move this for handlers dir
+  - name: Restart docker service
+    systemd:
+      state: restarted
+      enabled: yes
+      daemon_reload: yes
+      name: docker
+...

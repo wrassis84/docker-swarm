@@ -1,4 +1,3 @@
-# tasks file for server
 ---
 - name: Configure Swarm Managers
   hosts: docker_swarm_manager

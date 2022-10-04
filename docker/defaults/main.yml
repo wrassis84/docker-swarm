@@ -1,0 +1,4 @@
+# defaults file for server
+---
+docker_swarm_manager_port: "2377"
+...
