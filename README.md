@@ -1,7 +1,7 @@
 Role Name
 =========
 
-A brief description of the role goes here.
+Original content: https://www.mundodocker.com.br/cluster-de-docker-swarm-com-ansible/
 
 Requirements
 ------------
