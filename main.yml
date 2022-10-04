@@ -8,6 +8,6 @@
 - name: Configure Swarm Workers
   hosts: docker_swarm_worker
   roles:
-  - docker
-  - worker
+    - docker
+    - worker
 ...
