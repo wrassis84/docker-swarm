@@ -5,10 +5,8 @@
     register: docker_info
 
   - name: Create the cluster on the first server (manager)
-    shell: docker swarm init --advertise-addr {{ docker_swarm_manager_ip }}:{{
-    docker_swarm_manager_port }}
-    when: "docker_info.stdout.find('Swarm: active') == -1 and inventory_hostname
-    == groups['docker_swarm_manager'][0]"
+    shell: docker swarm init --advertise-addr {{ docker_swarm_manager_ip }}:{{ docker_swarm_manager_port }}
+    when: "docker_info.stdout.find('Swarm: active') == -1 and inventory_hostname == groups['docker_swarm_manager'][0]"
 
   - name: Store the manager token
     shell: docker swarm join-token -q manager
@@ -18,8 +16,7 @@
     when: "docker_info.stdout.find('Swarm: active') == -1"
 
   - name: Adds another swarm managers in the cluster
-    shell: docker swarm join --token "{{ docker_manager_token.stdout }}" {{
-    docker_swarm_manager_ip }}:{{ docker_swarm_manager_port }}
+    shell: docker swarm join --token "{{ docker_manager_token.stdout }}" {{ docker_swarm_manager_ip }}:{{ docker_swarm_manager_port }}
     changed_when: false
     when: "docker_info.stdout.find('Swarm: active') == -1
       and docker_info.stdout.find('Swarm: pending') == -1
