@@ -7,7 +7,8 @@
     shell: hostname {{ inventory_hostname }}
 
   - name: Kill apt proccess
-    shell: sudo killall -9 apt-get || true
+    shell: killall -9 apt-get || true
+    become: true
 
   - name: Show IP Address
   # ansible all -m setup -a 'filter=' -u USER --become (Shows all gather facts)
