@@ -92,11 +92,11 @@
       append: yes
     tags: add_docker_group
 
-  # TO FIX: Move this for handlers dir
-  - name: Restart docker service
-    systemd:
-      state: restarted
-      enabled: yes
-      daemon_reload: yes
-      name: docker
+# TO FIX: Move this for handlers dir
+  # - name: Restart docker service
+    # systemd:
+      # state: restarted
+      # enabled: yes
+      # daemon_reload: yes
+      # name: docker
 ...
