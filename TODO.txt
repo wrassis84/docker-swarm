@@ -1,0 +1,88 @@
+################################################################################
+*** Liberar portas no `ufw` firewall:
+(adicionar regras na configuração do *playbook*):
+  > **2377 TCP**     Comunicação de gerenciamento do *cluster.*
+    **7946 TCP/UDP** Comunicação entre os *nodes* do *cluster.*
+    **4789 UDP**     Tráfego de comunicação da rede *overlay.*
+  >
+################################################################################
+*** Pesquisar como é feita a quebra de linha em arquivos .yml e organizar todos os
+arquivos deste formato.
+# Criar um playbook (ou task) de atualização no início de tudo e todas as tasks
+de instalação checarem a validade do cache do apt.
+# Criar uma pasta que centralize todas as configurações do ansible?
+Talvez ~/.ansible? Onde ficariam todos os inventários consolidados num só
+arquivo (inventory.ini), o ansible.cfg?
+
+################################################################################
+*** Criar task para remover todos os containers após a criação dos mesmos com o
+playbook setup_docker.yml
+# inspiração: (https://linuxhint.com/stopping_docker_containers_using_ansible/)
+# NOTA: Adaptar para remover todos os containers após rodar o setup_docker.yml
+
+- hosts: docker
+    user: ansible
+    tasks:
+      - name: Get a list of all running containers
+        docker_host_info:
+        containers: true
+        register: docker_info
+      - name: Stop all running containers
+        docker_container:
+        name: '{{ item.Names[0] | regex_replace("^/", "") }}'
+        state: stopped
+      loop: '{{ docker_info.containers }}'
+
+# inspiração:
+https://stackoverflow.com/questions/62184206/ansible-plybook-script-for-\
+destroy-all-containers-and-remove-images-from-remote
+
+---
+ - hosts: all
+   gather_facts: false
+
+   tasks:
+ - name: Get running containers
+   docker_host_info:
+    containers: yes
+   register: docker_info
+
+ - name: Stop running containers
+   docker_container:
+     name: "{{ item }}"
+     state: stopped
+   loop: "{{ docker_info.containers | map(attribute='Id') | list }}"
+...
+
+
+---
+- hosts: all
+gather_facts: false
+tasks:
+- name: Get running containers
+  docker_host_info:
+    containers: yes
+  register: docker_info
+
+- name: Stop running containers
+  docker_container:
+    name: "{{ item }}"
+    state: stopped
+  loop: "{{ docker_info.containers | map(attribute='Id') | list }}"
+- name: Remove Stoped docker containers
+  shell: |
+     docker rm $(docker ps -a -q);
+  when: docker_info.containers != 0
+
+- name: Get details of all images
+  docker_host_info:
+    images: yes
+    verbose_output: yes
+  register: image_info
+- name: Remove all images
+  docker_image:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ image_info.images | map(attribute='Id') | list }}"
+  ...
+################################################################################
