@@ -8,7 +8,7 @@
 # Author          : William Ramos de Assis Rezende
 # Maintainer      : William Ramos de Assis Rezende
 #
-# Deploy.sh       : Executes Ansible Playbooks to Deploy a Swarm Cluster.
+# DeploySwarm.sh  : Executes Ansible Playbooks to Deploy a Swarm Cluster.
 # Requirements    : bash, ansible
 # Usage           : ./DeploySwarm.sh
 
