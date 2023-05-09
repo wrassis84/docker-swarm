@@ -22,4 +22,40 @@
       and docker_info.stdout.find('Swarm: pending') == -1
       and 'docker_swarm_manager' in group_names
       and inventory_hostname != groups['docker_swarm_manager'][0]"
+
+  - name: Turn on UFW
+    community.general.ufw:
+      state: enabled
+      policy: allow
+
+  - name: Set logging
+    community.general.ufw:
+      logging: 'on'
+
+  - name: Open Docker daemon and Swarm ports on Swarm managers (TCP ports)
+    community.general.ufw:
+      rule: allow
+      port: "{{ item }}"
+      proto: tcp
+    with_items:
+      - 22   # Allow SSH connections.
+      - 80   # Allow HTTP connections.
+      - 2376 # For secure Docker client communication.
+             # This port is required for Docker Machine to work.
+             # Docker Machine is used to orchestrate Docker hosts.
+      - 2377 # For communication between the nodes of a Docker Swarm or cluster.
+             # It only needs to be opened on manager nodes.
+      - 7946 # TCP/UDP for nodes' communication (container network discovery).
+  - name: Open Swarm ports on Swarm managers (UDP ports)
+    community.general.ufw:
+      rule: allow
+      port: "{{ item }}"
+      proto: udp
+    with_items:
+      - 7946 # TCP/UDP for nodes' communication (container netword discovery).
+      - 4789 # For overlay network traffic (container ingress networking).
+  
+  - name: Set to deny incoming requests by default
+    community.general.ufw:
+      default: deny
 ...
