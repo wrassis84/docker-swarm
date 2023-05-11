@@ -1,0 +1,169 @@
+---
+# At executing this playbook you can limit the hosts with "-l, --limit":
+# ansible-playbook playbook.yml -l server1 -u sysadmin
+- name: Setup Docker on nodes
+
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    container_count: 4
+    default_container_name: docker
+    default_container_image: ubuntu
+    default_container_command: sleep 1d
+    created_username: sysadmin
+
+  tasks:
+    - name: Get Ubuntu codename
+      ansible.builtin.command: lsb_release -cs
+      register: codename
+      changed_when: false
+
+    - name: Print out the codename
+      ansible.builtin.debug:
+        msg: "This is my {{ codename.stdout }} release!"
+      tags:
+        - never
+        - print_codename
+
+    - name: Install aptitude
+      ansible.builtin.apt:
+        name: aptitude
+        state: present
+        update_cache: true
+      register: install_aptitude
+
+    - name: Remove apt lock files
+    # Fix 'Couldn't get lock /var/lib/dpkg/lock'(Ubuntu)- https://snip.ly/j6oqr9
+    # Como corrigir os erros /var/lib/dpkg/lock ou o could not get lock
+    # /var/lib/dpkg/lock-frontend -> https://snip.ly/lfjor5
+      ansible.builtin.file:
+        path:
+          - /var/lib/dpkg/lock
+          - /var/lib/apt/lists/lock
+          - var/cache/apt/archives/lock
+        state: absent
+      when: '"FAILED" in install_aptitude'
+
+    - name: Install required system packages (git, curl, gnupg2, pip, ...)
+      ansible.builtin.apt:
+        pkg:
+          - git
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg2
+          - software-properties-common
+          - python3-pip
+          - virtualenv
+          - python3-setuptools
+          - lsb-release
+          - lsb-core
+        state: present
+        update_cache: true
+      tags:
+        - install_pkgs
+
+    - name: Add Docker GPG apt Key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Verify key fingerprint
+      ansible.builtin.apt_key:
+        id: 0EBFCD88
+        state: present
+      tags:
+        - fingerprint_key
+
+    - name: Add Docker Repository
+      ansible.builtin.apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu "{{ codename.stdout }}" stable
+        state: present
+        update_cache: true
+
+    - name: Update apt and install docker-ce | docker-ce-cli | containerd
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: true
+      tags:
+        - install_docker
+
+    - name: Install Docker Module for Python
+      ansible.builtin.pip:
+        name: docker
+
+    - name: Install Docker Compose
+      ansible.builtin.pip:
+        name: docker-compose
+
+    - name: Ensure group docker exists
+      ansible.builtin.group:
+        name: docker
+        state: present
+
+    - name: Add users on docker group
+      ansible.builtin.user:
+        name: "{{ created_username }}"
+        groups: docker
+        append: true
+      tags:
+        - add_to_docker_group
+
+    - name: Restart docker service
+      ansible.builtin.systemd:
+        state: restarted
+        enabled: true
+        daemon_reload: true
+        name: docker
+
+    - name: Pull default docker image
+      community.docker.docker_image:
+        name: "{{ default_container_image }}"
+        source: pull
+
+    - name: Create default containers
+      community.docker.docker_container:
+        name: "{{ default_container_name }}{{ item }}"
+        image: "{{ default_container_image }}"
+        command: "{{ default_container_command }}"
+        state: present
+      with_sequence: count={{ container_count }}
+
+    - name: Getting all created containers
+      ansible.builtin.command: docker ps -a
+      register: created_containers
+      changed_when: false
+
+    - name: Showing all created containers
+      ansible.builtin.debug:
+        msg: "{{ created_containers.stdout }}"
+
+    - name: Take a pause
+      ansible.builtin.command: sleep 3
+      changed_when: false
+
+    - name: Killing all created containers
+      community.docker.docker_container:
+        name: "{{ default_container_name }}{{ item }}"
+        image: "{{ default_container_image }}"
+        command: "{{ default_container_command }}"
+        state: absent
+      with_sequence: count={{ container_count }}
+      tags:
+        # - never #never run at least you use: ansible-playbook [...] --tags=never
+        - clean_containers
+
+    - name: Reboot all machines with all defaults
+    # ansible.builtin.reboot module – Reboot a machine ->
+    # https://snip.ly/q74r1i
+      ansible.builtin.reboot:
+      tags:
+        - never
+        - reboot_servers
+...

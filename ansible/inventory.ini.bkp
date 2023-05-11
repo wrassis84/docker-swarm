@@ -1,0 +1,11 @@
+[docker_swarm_manager]
+tf-node000 ansible_host=192.168.0.230
+
+[docker_swarm_worker]
+tf-node001 ansible_host=192.168.0.231
+
+[nfs_server]
+192.168.0.230
+
+[nfs_clients]
+192.168.0.231

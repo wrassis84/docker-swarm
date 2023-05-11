@@ -1,0 +1,185 @@
+---
+# For inspiration: How To Automate Initial Server Setup -> encr.pw/lcZmQ
+
+- name: Setup initial config on servers
+
+  hosts: all
+  become: true
+  vars:
+    created_username: sysadmin
+    root_user: root
+
+  tasks:
+
+    - name: Install aptitude
+      ansible.builtin.apt:
+        name: aptitude
+        state: present
+        update_cache: true
+      register: install_aptitude
+      # until: "'FAILED' in install_aptitude"
+      # # https://www.middlewareinventory.com/blog/ansible-retry-examples/
+      # retries: 5
+      # delay: 10
+
+    - name: Remove apt lock files
+    # Fix 'Couldn't get lock /var/lib/dpkg/lock'(Ubuntu)- https://snip.ly/j6oqr9
+    # Como corrigir os erros /var/lib/dpkg/lock ou o could not get lock
+    # /var/lib/dpkg/lock-frontend -> https://snip.ly/lfjor5
+      ansible.builtin.file:
+        path:
+          - /var/lib/dpkg/lock
+          - /var/lib/apt/lists/lock
+          - var/cache/apt/archives/lock
+        state: absent
+      when: '"FAILED" in install_aptitude'
+
+    - name: Setup passwordless sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+        validate: '/usr/sbin/visudo -cf %s'
+
+    - name: Create a new regular user with sudo privileges
+      ansible.builtin.user:
+        name: "{{ created_username }}"
+        state: present
+        groups: sudo
+        append: true
+        create_home: true
+
+    - name: Set authorized key for remote user
+      ansible.posix.authorized_key:
+        user: "{{ created_username }}"
+        state: present
+        key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"
+
+    - name: Disable password authentication for root
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        state: present
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin prohibit-password'
+
+    - name: Update apt and install required system packages
+      ansible.builtin.apt:
+        pkg:
+          - curl
+          - vim
+          - git
+          - ufw
+        state: present
+        update_cache: true
+
+    - name: Update all installed packages
+      ansible.builtin.apt:
+        name: "*"
+        state: present
+
+    - name: Make sure NTP service is running
+      ansible.builtin.systemd:
+        state: started
+        name: systemd-timesyncd
+
+    - name: Remove dependencies that are no longer required
+      # Diferenças entre autoclean, autoremove e clean -> encr.pw/F9hYz
+      ansible.builtin.apt:
+        autoremove: true
+        autoclean: true
+        clean: true
+      tags:
+        - clean_system
+
+    - name: Config .vimrc to users and backup .vimrc
+      ansible.builtin.copy:
+        src: ../files/.vimrc
+        dest: /home/{{ created_username }}/.vimrc
+        backup: true
+      tags:
+        - vimrc
+
+    - name: Config .vimrc to root and backup .vimrc
+      ansible.builtin.copy:
+        src: ../files/.vimrc
+        dest: /{{ root_user }}/.vimrc
+        backup: true
+      tags:
+        - vimrc_root
+
+    - name: Config .bashrc to users and backup .bashrc
+      ansible.builtin.copy:
+        src: ../files/.bashrc
+        dest: /home/{{ created_username }}/.bashrc
+        backup: true 
+      tags:
+        - bashrc
+
+    - name: Config .bashrc to root and backup .bashrc
+      ansible.builtin.copy:
+        src: ../files/.bashrc_root
+        dest: /{{ root_user }}/.bashrc
+        backup: true
+      tags:
+        - bashrc_root
+
+    - name: Config ssh banner file and backup original issue file
+      ansible.builtin.copy:
+        src: ../files/issue
+        dest: /etc/issue
+        backup: true
+      tags:
+        - ssh_issue
+
+    - name: Config ssh banner file and backup original issue.net file
+      ansible.builtin.copy:
+        src: ../files/issue.net
+        dest: /etc/issue.net
+        backup: true
+      tags:
+        - ssh_issue.net
+
+    - name: Config motd file and backup original motd file
+      ansible.builtin.copy:
+        src: ../files/motd
+        dest: /etc/motd
+        backup: true
+      tags:
+        - motd
+
+    - name: Config ssh banner message
+      ansible.builtin.lineinfile:
+      # ansible.builtin.replace module -> l1nq.com/1XpHT
+        path: /etc/ssh/sshd_config
+        state: present
+        regexp: '^#Banner none'
+        line: 'Banner /etc/issue.net'
+
+    - name: Add Ansible inventory mappings to /etc/hosts
+      ansible.builtin.blockinfile:
+        path: /etc/hosts
+        block: |
+          {% for host in groups['all'] %}
+          {{ hostvars[host].ansible_host }} {{ host }}
+          {% endfor %}
+      tags:
+        - etc_hosts
+          # {% for host in groups.all %}
+          # {{ hostvars[host].ansible_default_ipv4.address }} {{ hostvars[host].ansible_fqdn }} {{ hostvars[host].ansible_hostname }}
+          # {% endfor %}
+
+    - name: UFW - Allow SSH connections
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+      tags:
+        - allow_ssh
+
+    - name: UFW - Enable and deny by default
+      community.general.ufw:
+        state: enabled
+        default: deny
+      tags:
+        - deny
+...
