@@ -9,13 +9,19 @@
 # Maintainer       : William Ramos de Assis Rezende
 #
 # DeployServers.sh : Executes Ansible Playbooks to Config Servers.
-# Requirements     : bash, ansible
+# Requirements     : bash, terraform, ansible
 # Usage            : ./Deploy.sh
 
 ######## TESTING ENVIRONMENT ###################################################
-
+# Run "bash --version"
+# bash version 5.1.16
+#
 ######## TESTS/VALIDATIONS #####################################################
-
+# Is terraform installed?
+[ ! -x "$(which terraform)" ] && echo "Terraform isn't installed! Install it!"
+# [ ! -x "$(which terraform)" ] && sudo apt install -y lynx
+# Is ansible installed?
+[ ! -x "$(which ansible)" ]   && echo "Ansible isn't installed! Install it!"
 ######## VARIABLES #############################################################
 
 ######## FUNCTIONS #############################################################
