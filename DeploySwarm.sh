@@ -25,7 +25,7 @@ echo "Configuring ansible environment..."
 cd $PWD/ansible
 source ansible.env > /dev/null
 
-echo "Playing docker-swarm role..."
+echo "Running docker-swarm role..."
 cd -
 cd $PWD
 ansible-playbook main.yml -u sysadmin -b #> /dev/null
